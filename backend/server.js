@@ -20,9 +20,9 @@ app.use(bodyParser.json());
 const db = mariadb.createPool({
     host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || 'crazystitches',
-    database: process.env.DB_NAME || 'verti_app_db',
-    port: process.env.DB_PORT || 3307,
+    password: process.env.DB_PASSWORD || 'password',
+    database: process.env.DB_NAME || 'database',
+    port: process.env.DB_PORT || 3306,
 });
 
 app.use((req, res, next) => {
@@ -63,25 +63,25 @@ app.post('/validate-key', async (req, res) => {
     const { productKey } = req.body;
 
     if (!productKey) {
-        return res.status(400).json({ valid: false, message: 'Product key is required' });
+      return res.status(400).json({ valid: false, message: 'Product key is required' });
     }
 
     try {
-        const sql = 'SELECT * FROM product_keys WHERE key_value = ? AND is_used = FALSE';
-        const conn = await db.getConnection();
-        const result = await conn.query(sql, [productKey]);
-        conn.release();
+      const sql = 'SELECT * FROM product_keys WHERE key_value = ? AND is_used = FALSE';
+      const conn = await db.getConnection();
+      const result = await conn.query(sql, [productKey]);
+      conn.release();
 
-        if (result.length === 0) {
-            return res.status(200).json({ valid: false, message: 'Invalid or already used product key' });
-        }
+      if (result.length === 0) {
+        return res.status(200).json({ valid: false, message: 'Invalid or already used product key' });
+      }
 
-        return res.status(200).json({ valid: true, message: 'Valid product key' });
+      return res.status(200).json({ valid: true, message: 'Valid product key' });
     } catch (err) {
-        console.error('Error validating product key:', err);
-        return res.status(500).json({ valid: false, message: 'Server error' });
+      console.error('Error validating product key:', err);
+      return res.status(500).json({ valid: false, message: 'Server error' });
     }
-});
+  });
 
 // Register new account with product key verification
 app.post('/register', async (req, res) => {
