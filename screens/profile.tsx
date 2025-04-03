@@ -2,7 +2,7 @@
 /* eslint-disable no-trailing-spaces */
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Path, Circle } from 'react-native-svg';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 
@@ -38,6 +38,7 @@ const NotificationIcon = () => (
 
 const ProfileScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
+  const [activeTab, setActiveTab] = useState('profile');
 
   // User profile data (would typically come from state management or context)
   const [userProfile] = useState({
@@ -54,6 +55,15 @@ const ProfileScreen: React.FC = () => {
   // Handler for burger menu
   const handleBurgerMenuPress = () => {
     navigation.navigate('Menu');
+  };
+
+  const handleNavigation = (screenName: keyof RootStackParamList) => {
+    // Don't navigate if we're already on this screen
+    if (screenName === 'Profile') {
+      return;
+    }
+    
+    navigation.navigate(screenName);
   };
 
   return (
@@ -79,7 +89,7 @@ const ProfileScreen: React.FC = () => {
         {/* Notification Button */}
         <TouchableOpacity 
           style={styles.notificationButton} 
-          onPress={() => navigation.navigate('Notifications')}
+          onPress={() => handleNavigation('Notifications')}
           activeOpacity={0.7}
         >
           <NotificationIcon />
@@ -99,7 +109,7 @@ const ProfileScreen: React.FC = () => {
         <View style={styles.actionButtonsContainer}>
           <TouchableOpacity 
             style={styles.actionButton}
-            onPress={() => navigation.navigate('EditPassword')}
+            onPress={() => handleNavigation('EditPassword')}
           >
             <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2ecc71" strokeWidth="2">
               <Path d="M10 13.5l2 2 4-4m4.28-5.28a9 9 0 0 0-12.06 0L4 10l4 4 2-2" />
@@ -122,86 +132,131 @@ const ProfileScreen: React.FC = () => {
         </View>
       </ScrollView>
 
-      {/* Bottom Navigation */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity style={styles.navButton} onPress={() => navigation.navigate('Dashboard')}>
-          {/* Home Icon */}
-          <Svg
-            width={24}
-            height={24}
-            viewBox="0 0 24 24"
-            strokeWidth={1.5}
-            stroke="white"
-            fill="none"
-          >
-            <Path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M2.25 12L11.204 3.045c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75V19.875c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"
-            />
-          </Svg>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.navButton} onPress={() => navigation.navigate('Plants')}>
-          {/* Stats Icon */}
-          <Svg
-            width={24}
-            height={24}
-            viewBox="0 0 24 24"
-            strokeWidth={1.5}
-            stroke="white"
-            fill="none"
-          >
-            <Path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M10.5 6a7.5 7.5 0 1 0 7.5 7.5h-7.5V6Z"
-            />
-            <Path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M13.5 10.5H21A7.5 7.5 0 0 0 13.5 3v7.5Z"
-            />
-          </Svg>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.navButton}>
-          {/* Third Button Icon */}
-          <Svg
-            width={24}
-            height={24}
-            viewBox="0 0 24 24"
-            strokeWidth={1.5}
-            stroke="white"
-            fill="none"
-          >
-            <Path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z"
-            />
-          </Svg>
-        </TouchableOpacity>
-
+      {/* iOS-style Bottom Navigation */}
+      <View style={styles.bottomNavContainer}>
+        {/* Home Button */}
         <TouchableOpacity 
           style={styles.navButton} 
-          onPress={() => navigation.navigate('Profile')}
-        > 
-          {/* Profile Icon */}
+          activeOpacity={0.7}
+          onPress={() => handleNavigation('Dashboard')}
+        >
           <Svg
             width={24}
             height={24}
             viewBox="0 0 24 24"
-            strokeWidth={1.5}
-            stroke="white"
+            strokeWidth={activeTab === 'home' ? 2 : 1.5}
+            stroke={activeTab === 'home' ? '#2ecc71' : '#8E8E93'}
             fill="none"
           >
             <Path
+              d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
               strokeLinecap="round"
               strokeLinejoin="round"
-              d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+            />
+            <Path
+              d="M9 22V12h6v10"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             />
           </Svg>
+          <Text style={[styles.navLabel, activeTab === 'home' && styles.activeNavLabel]}>Home</Text>
+          {activeTab === 'home' && <View style={styles.activeTabIndicator} />}
+        </TouchableOpacity>
+        
+        {/* Plants Button */}
+        <TouchableOpacity 
+          style={styles.navButton}
+          activeOpacity={0.7}
+          onPress={() => {
+            setActiveTab('plants');
+            handleNavigation('Plants');
+          }}
+        >
+          <Svg
+            width={24}
+            height={24}
+            viewBox="0 0 24 24"
+            strokeWidth={activeTab === 'plants' ? 2 : 1.5}
+            stroke={activeTab === 'plants' ? '#2ecc71' : '#8E8E93'}
+            fill="none"
+          >
+            <Path
+              d="M18 20V10M12 20V4M6 20v-6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </Svg>
+          <Text style={[styles.navLabel, activeTab === 'plants' && styles.activeNavLabel]}>Plants</Text>
+          {activeTab === 'plants' && <View style={styles.activeTabIndicator} />}
+        </TouchableOpacity>
+        
+        {/* Plus Button */}
+        <TouchableOpacity 
+          style={styles.addButton}
+          activeOpacity={0.7}
+        >
+          <Svg
+            width={24}
+            height={24}
+            viewBox="0 0 24 24"
+            strokeWidth={2}
+            stroke="#2ecc71"
+            fill="none"
+          >
+            <Path
+              d="M12 5v14M5 12h14"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </Svg>
+        </TouchableOpacity>
+        
+        {/* Apps Button */}
+        <TouchableOpacity 
+          style={styles.navButton}
+          activeOpacity={0.7}
+          onPress={() => setActiveTab('apps')}
+        >
+          <Svg
+            width={24}
+            height={24}
+            viewBox="0 0 24 24"
+            strokeWidth={activeTab === 'apps' ? 2 : 1.5}
+            stroke={activeTab === 'apps' ? '#2ecc71' : '#8E8E93'}
+            fill="none"
+          >
+            <Path
+              d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </Svg>
+          <Text style={[styles.navLabel, activeTab === 'apps' && styles.activeNavLabel]}>Apps</Text>
+          {activeTab === 'apps' && <View style={styles.activeTabIndicator} />}
+        </TouchableOpacity>
+        
+        {/* Profile Button - Already active */}
+        <TouchableOpacity 
+          style={styles.navButton}
+          activeOpacity={0.7}
+        >
+          <Svg
+            width={24}
+            height={24}
+            viewBox="0 0 24 24"
+            strokeWidth={2}
+            stroke="#2ecc71"
+            fill="none"
+          >
+            <Path
+              d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <Circle cx="12" cy="7" r="4" />
+          </Svg>
+          <Text style={[styles.navLabel, styles.activeNavLabel]}>Profile</Text>
+          <View style={styles.activeTabIndicator} />
         </TouchableOpacity>
       </View>
     </View>
@@ -305,18 +360,48 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'white',
   },
-  bottomNav: {
+  
+  // iOS-style Bottom Navigation styles
+  bottomNavContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    padding: 15,
-    backgroundColor: 'white',
+    alignItems: 'center',
+    paddingVertical: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderTopWidth: 0.5,
+    borderTopColor: 'rgba(0, 0, 0, 0.1)',
   },
   navButton: {
-    backgroundColor: '#6FBF73',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 5,
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 5,
+    position: 'relative',
+  },
+  navLabel: {
+    fontSize: 10,
+    color: '#8E8E93',
+    marginTop: 3,
+  },
+  activeNavLabel: {
+    color: '#2ecc71',
+    fontWeight: '600',
+  },
+  activeTabIndicator: {
+    position: 'absolute',
+    bottom: -5,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#2ecc71',
+  },
+  addButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(46, 204, 113, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 10,
   },
 });
 

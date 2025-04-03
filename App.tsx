@@ -7,6 +7,7 @@ import LoginScreen from './screens/login';
 import SignupScreen from './screens/signup';
 import ForgotScreen from './screens/forgot';
 import DashboardScreen from './screens/dashboard';
+import ProfileScreen from './screens/profile';
 
 export type RootStackParamList = {
   Loading: undefined;
@@ -14,6 +15,7 @@ export type RootStackParamList = {
   Signup: undefined;
   Dashboard: undefined;
   Forgot: undefined;
+  Profile: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -26,7 +28,8 @@ const App: React.FC = () => {
         <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Signup" component={SignupScreen} />
         <Stack.Screen name="Forgot" component={ForgotScreen} />
-        <Stack.Screen name="Dashboard" component={DashboardScreen} />
+        <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ headerShown: false}}/>
+        <Stack.Screen name="Profile" component={ProfileScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
