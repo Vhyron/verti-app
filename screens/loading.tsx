@@ -21,7 +21,7 @@ const LoadingScreen: React.FC = () => {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      navigation.navigate('Login');
+      navigation.navigate('Dashboard');
     }, 3000);
 
     return () => clearTimeout(timer);

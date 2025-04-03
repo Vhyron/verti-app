@@ -70,12 +70,14 @@ const NotificationIcon = () => (
 );
 
 type RootStackParamList = {
+  Dashboard: undefined;
   Profile: undefined;
   Notifications: undefined;
   Menu: undefined;
+  Plants: undefined;
 };
 
-type NavigationProp = StackNavigationProp<RootStackParamList, 'Profile' | 'Notifications' | 'Menu'>;
+type NavigationProp = StackNavigationProp<RootStackParamList, 'Dashboard' | 'Profile' | 'Notifications' | 'Menu' | 'Plants'>;
 
 // Interface for sensor data
 interface SensorData {
@@ -114,15 +116,19 @@ const DashboardScreen: React.FC = () => {
   const [sensorError, setSensorError] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<string[]>([]);
 
+  // Track active tab
+  const [, setActiveTab] = useState('home');
+
   // Fetch user data on component mount
   useEffect(() => {
     const fetchUserData = async () => {
       try {
         setIsLoading(true);
-        const response = await axios.get('http://192.168.1.4:8080/users');
+        const response = await axios.get('http://192.168.5.201:8080/users', {
+          timeout: 5000, // 5 second timeout
+        });
 
         const userData = response.data;
-        // Assuming the API returns an object with a name property
         if (userData && userData.name) {
           setUserName(userData.name);
         }
@@ -131,6 +137,9 @@ const DashboardScreen: React.FC = () => {
       } catch (err) {
         console.error('Error fetching user data:', err);
         setError('Could not load user data');
+
+        // Set fallback data
+        setUserName('John Doe');
       } finally {
         setIsLoading(false);
       }
@@ -144,7 +153,9 @@ const DashboardScreen: React.FC = () => {
     const fetchSensorData = async () => {
       try {
         setSensorLoading(true);
-        const response = await axios.get('http://192.168.5.200:8080/sensors');
+        const response = await axios.get('http://192.168.5.201:8080/sensors', {
+          timeout: 5000, // 5 second timeout
+        });
 
         if (response.data) {
           setSensorData(response.data);
@@ -180,6 +191,25 @@ const DashboardScreen: React.FC = () => {
       } catch (err) {
         console.error('Error fetching sensor data:', err);
         setSensorError('Could not load sensor data');
+
+        // Use fallback data
+        setSensorData({
+          lightIntensity: 75,
+          temperature: 78,
+          humidity: 65,
+          pillars: {
+            'Pillar 1': { waterLevel: 'sufficient', waterFlow: 85 },
+            'Pillar 2': { waterLevel: 'sufficient', waterFlow: 90 },
+            'Pillar 3': { waterLevel: 'low', waterFlow: 75 },
+          },
+        });
+
+        // Add some example notifications for the fallback data
+        setNotifications([
+          'ALERT: Pillar 3 water level is low',
+          'ALERT: Pillar 3 water flow is below optimal (75Psi)',
+        ]);
+
       } finally {
         setSensorLoading(false);
       }
@@ -198,6 +228,16 @@ const DashboardScreen: React.FC = () => {
   // Handler for burger menu
   const handleBurgerMenuPress = () => {
     navigation.navigate('Menu');
+  };
+
+  // Handle navigation
+  const handleNavigation = (screenName: keyof RootStackParamList) => {
+    // Don't navigate if we're already on Dashboard
+    if (screenName === 'Dashboard') {
+      return;
+    }
+
+    navigation.navigate(screenName);
   };
 
   // Format temperature for display
@@ -228,12 +268,19 @@ const DashboardScreen: React.FC = () => {
         {/* Notification Button */}
         <TouchableOpacity
           style={styles.notificationButton}
-          onPress={() => navigation.navigate('Notifications')}
+          onPress={() => handleNavigation('Notifications')}
           activeOpacity={0.7}
         >
           <NotificationIcon />
         </TouchableOpacity>
       </View>
+
+      {/* Show a banner if using fallback data
+      {usingFallbackData && (
+        <View style={styles.fallbackBanner}>
+          <Text style={styles.fallbackText}>Using demo data (no server connection)</Text>
+        </View>
+      )} */}
 
       {/* ImageBackground for the main content */}
       <ImageBackground
@@ -363,86 +410,109 @@ const DashboardScreen: React.FC = () => {
         </ScrollView>
       </ImageBackground>
 
-      {/* Bottom Navigation */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity style={styles.navButton}>
-          {/* Home Icon */}
-          <Svg
-            width={24}
-            height={24}
-            viewBox="0 0 24 24"
-            strokeWidth={1.5}
-            stroke="white"
-            fill="none"
-          >
-            <Path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M2.25 12L11.204 3.045c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75V19.875c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"
-            />
-          </Svg>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.navButton}>
-          {/* Stats Icon */}
-          <Svg
-            width={24}
-            height={24}
-            viewBox="0 0 24 24"
-            strokeWidth={1.5}
-            stroke="white"
-            fill="none"
-          >
-            <Path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M10.5 6a7.5 7.5 0 1 0 7.5 7.5h-7.5V6Z"
-            />
-            <Path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M13.5 10.5H21A7.5 7.5 0 0 0 13.5 3v7.5Z"
-            />
-          </Svg>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.navButton}>
-          {/* Third Button Icon */}
-          <Svg
-            width={24}
-            height={24}
-            viewBox="0 0 24 24"
-            strokeWidth={1.5}
-            stroke="white"
-            fill="none"
-          >
-            <Path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z"
-            />
-          </Svg>
-        </TouchableOpacity>
-
+      {/* iOS-style Bottom Navigation */}
+      <View style={styles.bottomNavContainer}>
+        {/* Home Button - Already active */}
         <TouchableOpacity
           style={styles.navButton}
-          onPress={() => navigation.navigate('Profile')}
+          activeOpacity={0.7}
         >
-          {/* Profile Icon */}
+          <Svg
+            width={24}
+            height={24}
+            viewBox="0 0 24 24"
+            strokeWidth={2}
+            stroke="#2ecc71"
+            fill="none"
+          >
+            <Path
+              d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <Path
+              d="M9 22V12h6v10"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </Svg>
+          <Text style={[styles.navLabel, styles.activeNavLabel]}>Home</Text>
+          <View style={styles.activeTabIndicator} />
+        </TouchableOpacity>
+
+        {/* Plants Button */}
+        <TouchableOpacity
+          style={styles.navButton}
+          activeOpacity={0.7}
+          onPress={() => {
+            setActiveTab('plants');
+            handleNavigation('Plants');
+          }}
+        >
           <Svg
             width={24}
             height={24}
             viewBox="0 0 24 24"
             strokeWidth={1.5}
-            stroke="white"
+            stroke="#8E8E93"
             fill="none"
           >
             <Path
+              d="M18 20V10M12 20V4M6 20v-6"
               strokeLinecap="round"
               strokeLinejoin="round"
-              d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
             />
           </Svg>
+          <Text style={styles.navLabel}>Plants</Text>
+        </TouchableOpacity>
+
+        {/* Apps Button */}
+        <TouchableOpacity
+          style={styles.navButton}
+          activeOpacity={0.7}
+        >
+          <Svg
+            width={24}
+            height={24}
+            viewBox="0 0 24 24"
+            strokeWidth={1.5}
+            stroke="#8E8E93"
+            fill="none"
+          >
+            <Path
+              d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </Svg>
+          <Text style={styles.navLabel}>Apps</Text>
+        </TouchableOpacity>
+
+        {/* Profile Button */}
+        <TouchableOpacity
+          style={styles.navButton}
+          activeOpacity={0.7}
+          onPress={() => {
+            setActiveTab('profile');
+            handleNavigation('Profile');
+          }}
+        >
+          <Svg
+            width={24}
+            height={24}
+            viewBox="0 0 24 24"
+            strokeWidth={1.5}
+            stroke="#8E8E93"
+            fill="none"
+          >
+            <Path
+              d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <Circle cx="12" cy="7" r="4" />
+          </Svg>
+          <Text style={styles.navLabel}>Profile</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -492,6 +562,16 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 20,
     backgroundColor: 'rgba(46, 204, 113, 0.1)',
+  },
+  fallbackBanner: {
+    backgroundColor: 'rgba(255, 204, 0, 0.9)',
+    padding: 8,
+    alignItems: 'center',
+  },
+  fallbackText: {
+    color: '#333',
+    fontWeight: '600',
+    fontSize: 12,
   },
   backgroundImage: {
     flex: 1,
@@ -561,19 +641,6 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 14,
     color: '#2d3436',
-  },
-  bottomNav: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    padding: 15,
-    backgroundColor: 'white',
-  },
-  navButton: {
-    backgroundColor: '#6FBF73',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 5,
-    alignItems: 'center',
   },
   statusSection: {
     backgroundColor: '#FFFFFF',
@@ -650,6 +717,41 @@ const styles = StyleSheet.create({
   alertStatus: {
     color: '#e74c3c',
     fontWeight: 'bold',
+  },
+
+  // iOS-style Bottom Navigation styles
+  bottomNavContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingVertical: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderTopWidth: 0.5,
+    borderTopColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  navButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 5,
+    position: 'relative',
+    flex: 1,
+  },
+  navLabel: {
+    fontSize: 10,
+    color: '#8E8E93',
+    marginTop: 3,
+  },
+  activeNavLabel: {
+    color: '#2ecc71',
+    fontWeight: '600',
+  },
+  activeTabIndicator: {
+    position: 'absolute',
+    bottom: -5,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#2ecc71',
   },
 });
 
