@@ -57,7 +57,7 @@ const LoginScreen: React.FC = () => {
 
     try {
       // Send a POST request to the backend API for login
-      const response = await axios.post('http://192.168.5.201:8080/login', { email, password });
+      const response = await axios.post('http://192.168.5.80:8080/login', { email, password });
 
       // Handle successful login
       if (response.data.auth) {

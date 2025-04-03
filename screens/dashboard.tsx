@@ -92,6 +92,9 @@ interface SensorData {
   }
 }
 
+// API URL - make sure this matches your server configuration
+const API_BASE_URL = 'http://192.168.5.80:8080'; // Update with your server's IP and port
+
 const DashboardScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
 
@@ -124,22 +127,27 @@ const DashboardScreen: React.FC = () => {
     const fetchUserData = async () => {
       try {
         setIsLoading(true);
-        const response = await axios.get('http://192.168.5.201:8080/users', {
-          timeout: 5000, // 5 second timeout
+        console.log('Fetching user data from:', `${API_BASE_URL}/users`);
+
+        const response = await axios.get(`${API_BASE_URL}/users`, {
+          timeout: 10000, // 10 second timeout
         });
 
+        console.log('User data response:', response.data);
+
         const userData = response.data;
-        if (userData && userData.name) {
-          setUserName(userData.name);
+        // Changed to look for username instead of name
+        if (userData && userData.username) {
+          setUserName(userData.username);
+        } else if (Array.isArray(userData) && userData.length > 0 && userData[0].username) {
+          // If the response is an array (common API pattern), take the first user
+          setUserName(userData[0].username);
         }
 
         setError(null);
       } catch (err) {
         console.error('Error fetching user data:', err);
         setError('Could not load user data');
-
-        // Set fallback data
-        setUserName('John Doe');
       } finally {
         setIsLoading(false);
       }
@@ -153,9 +161,13 @@ const DashboardScreen: React.FC = () => {
     const fetchSensorData = async () => {
       try {
         setSensorLoading(true);
-        const response = await axios.get('http://192.168.5.201:8080/sensors', {
-          timeout: 5000, // 5 second timeout
+        console.log('Fetching sensor data from:', `${API_BASE_URL}/sensors`);
+
+        const response = await axios.get(`${API_BASE_URL}/sensors`, {
+          timeout: 10000, // 10 second timeout
         });
+
+        console.log('Sensor data response:', response.data);
 
         if (response.data) {
           setSensorData(response.data);
@@ -190,26 +202,7 @@ const DashboardScreen: React.FC = () => {
         setSensorError(null);
       } catch (err) {
         console.error('Error fetching sensor data:', err);
-        setSensorError('Could not load sensor data');
-
-        // Use fallback data
-        setSensorData({
-          lightIntensity: 75,
-          temperature: 78,
-          humidity: 65,
-          pillars: {
-            'Pillar 1': { waterLevel: 'sufficient', waterFlow: 85 },
-            'Pillar 2': { waterLevel: 'sufficient', waterFlow: 90 },
-            'Pillar 3': { waterLevel: 'low', waterFlow: 75 },
-          },
-        });
-
-        // Add some example notifications for the fallback data
-        setNotifications([
-          'ALERT: Pillar 3 water level is low',
-          'ALERT: Pillar 3 water flow is below optimal (75Psi)',
-        ]);
-
+        setSensorError('Error loading sensor data. Please try again.');
       } finally {
         setSensorLoading(false);
       }
@@ -275,13 +268,6 @@ const DashboardScreen: React.FC = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Show a banner if using fallback data
-      {usingFallbackData && (
-        <View style={styles.fallbackBanner}>
-          <Text style={styles.fallbackText}>Using demo data (no server connection)</Text>
-        </View>
-      )} */}
-
       {/* ImageBackground for the main content */}
       <ImageBackground
         source={require('../assets/dashBG.jpg')}
@@ -295,7 +281,7 @@ const DashboardScreen: React.FC = () => {
               <Text style={styles.loadingText}>Loading user data...</Text>
             </View>
           ) : error ? (
-            <Text style={styles.greeting}>Hello, User!</Text>
+            <Text style={styles.greeting}>Hello, {userName}!</Text>
           ) : (
             <Text style={styles.greeting}>Hello, {userName}!</Text>
           )}
@@ -326,7 +312,7 @@ const DashboardScreen: React.FC = () => {
                 <Text style={styles.loadingText}>Loading sensor data...</Text>
               </View>
             ) : sensorError ? (
-              <Text style={styles.errorText}>Error loading sensor data. Please try again.</Text>
+              <Text style={styles.errorText}>{sensorError}</Text>
             ) : (
               <>
                 <View style={styles.metricsContainer}>
@@ -528,6 +514,7 @@ const styles = StyleSheet.create({
     color: '#2ecc71',
   },
   header: {
+    height: 110,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -542,6 +529,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   menuButton: {
+    marginTop: 45,
     padding: 8,
     borderRadius: 20,
     backgroundColor: 'rgba(46, 204, 113, 0.1)',
@@ -550,28 +538,26 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
+    top: 0,
+    height: 120,
     alignItems: 'center',
-    zIndex: -1,
+    justifyContent: 'center',
+    paddingTop: 40,
+    zIndex: 10,
   },
   logo: {
     fontSize: 25,
     fontWeight: 'bold',
     textAlign: 'center',
+    backgroundColor: 'white', // Optional: add background to logo text for visibility
+    paddingHorizontal: 10,
+    borderRadius: 5,
   },
   notificationButton: {
+    marginTop: 45,
     padding: 8,
     borderRadius: 20,
     backgroundColor: 'rgba(46, 204, 113, 0.1)',
-  },
-  fallbackBanner: {
-    backgroundColor: 'rgba(255, 204, 0, 0.9)',
-    padding: 8,
-    alignItems: 'center',
-  },
-  fallbackText: {
-    color: '#333',
-    fontWeight: '600',
-    fontSize: 12,
   },
   backgroundImage: {
     flex: 1,
@@ -579,15 +565,12 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   scrollContainer: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 15,
   },
   greeting: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#fff',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: {width: 1, height: 1},
-    textShadowRadius: 10,
+    color: '#000',
     marginTop: 15,
     marginLeft: 5,
   },
@@ -609,10 +592,7 @@ const styles = StyleSheet.create({
   },
   subtext: {
     fontSize: 14,
-    color: '#fff',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: {width: -1, height: 1},
-    textShadowRadius: 10,
+    color: '#000',
     marginLeft: 5,
     marginBottom: 15,
   },

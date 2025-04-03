@@ -1,4 +1,5 @@
 /* eslint-disable eol-last */
+const cors = require('cors');
 const express = require('express');
 const bodyParser = require('body-parser');
 const mariadb = require('mariadb');
@@ -13,14 +14,15 @@ const app = express();
 const port = process.env.PORT || 8080;
 const serverIP = '0.0.0.0';
 
+app.use(cors());
 app.use(bodyParser.json());
 
 const db = mariadb.createPool({
     host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || 'usls123',
-    database: process.env.DB_NAME || 'user_auth',
-    port: process.env.DB_PORT || 3306,
+    password: process.env.DB_PASSWORD || 'crazystitches',
+    database: process.env.DB_NAME || 'verti_app_db',
+    port: process.env.DB_PORT || 3307,
 });
 
 app.use((req, res, next) => {
@@ -44,22 +46,87 @@ const forgotPasswordLimiter = rateLimit({
     message: 'Too many password reset attempts. Please try again later.',
 });
 
-// Register new account
-app.post('/register', async (req, res) => {
-    const { username, email, password } = req.body;
+// Define an endpoint that logs the user-agent
+app.get('/user-agent', (req, res) => {
+    // Get the user-agent from the request headers
+    const userAgent = req.headers['user-agent'];
 
-    if (!username || !email || !password) {
-        return res.status(400).send('All fields are required');
+    // Log the user-agent to the console
+    console.log('User-Agent:', userAgent);
+
+    // Send a response to the client
+    res.send('OK');
+});
+
+// Validate Product Key
+app.post('/validate-key', async (req, res) => {
+    const { productKey } = req.body;
+
+    if (!productKey) {
+        return res.status(400).json({ valid: false, message: 'Product key is required' });
     }
 
     try {
-        const hashedPassword = bcrypt.hashSync(password, 8);
-        const sql = 'INSERT INTO users (username, email, password) VALUES (?, ?, ?)';
+        const sql = 'SELECT * FROM product_keys WHERE key_value = ? AND is_used = FALSE';
         const conn = await db.getConnection();
-        await conn.query(sql, [username, email, hashedPassword]);
+        const result = await conn.query(sql, [productKey]);
         conn.release();
+
+        if (result.length === 0) {
+            return res.status(200).json({ valid: false, message: 'Invalid or already used product key' });
+        }
+
+        return res.status(200).json({ valid: true, message: 'Valid product key' });
+    } catch (err) {
+        console.error('Error validating product key:', err);
+        return res.status(500).json({ valid: false, message: 'Server error' });
+    }
+});
+
+// Register new account with product key verification
+app.post('/register', async (req, res) => {
+    const { username, email, password, productKey } = req.body;
+
+    if (!username || !email || !password || !productKey) {
+        return res.status(400).send('All fields are required');
+    }
+
+    let conn;
+    try {
+        conn = await db.getConnection();
+        await conn.beginTransaction();
+
+        // Verify product key exists and is unused
+        const keySql = 'SELECT * FROM product_keys WHERE key_value = ? AND is_used = FALSE';
+        const keyResult = await conn.query(keySql, [productKey]);
+
+        if (keyResult.length === 0) {
+            await conn.rollback();
+            conn.release();
+            return res.status(400).send('Invalid or already used product key');
+        }
+
+        const keyId = keyResult[0].id;
+
+        // Create user
+        const hashedPassword = bcrypt.hashSync(password, 8);
+        const userSql = 'INSERT INTO users (username, email, password) VALUES (?, ?, ?)';
+        const userResult = await conn.query(userSql, [username, email, hashedPassword]);
+        const userId = userResult.insertId;
+
+        // Mark product key as used
+        const updateKeySql = 'UPDATE product_keys SET is_used = TRUE, used_by_user_id = ? WHERE id = ?';
+        await conn.query(updateKeySql, [userId, keyId]);
+
+        await conn.commit();
+        conn.release();
+
         res.status(201).send('User registered successfully');
     } catch (err) {
+        if (conn) {
+            await conn.rollback();
+            conn.release();
+        }
         console.error('Error registering user:', err);
         res.status(500).send('Server error');
     }

@@ -8,6 +8,7 @@ import SignupScreen from './screens/signup';
 import ForgotScreen from './screens/forgot';
 import DashboardScreen from './screens/dashboard';
 import ProfileScreen from './screens/profile';
+import PlantsScreen from './screens/plants';
 
 export type RootStackParamList = {
   Loading: undefined;
@@ -16,6 +17,7 @@ export type RootStackParamList = {
   Dashboard: undefined;
   Forgot: undefined;
   Profile: undefined;
+  Plants: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -26,10 +28,11 @@ const App: React.FC = () => {
       <Stack.Navigator initialRouteName="Loading">
         <Stack.Screen name="Loading" component={LoadingScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="Signup" component={SignupScreen} />
-        <Stack.Screen name="Forgot" component={ForgotScreen} />
+        <Stack.Screen name="Signup" component={SignupScreen} options={{ headerShown: false}}/>
+        <Stack.Screen name="Forgot" component={ForgotScreen} options={{ headerShown: false}}/>
         <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ headerShown: false}}/>
-        <Stack.Screen name="Profile" component={ProfileScreen} />
+        <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false}}/>
+        <Stack.Screen name="Plants" component={PlantsScreen} options={{ headerShown: false}}/>
       </Stack.Navigator>
     </NavigationContainer>
   );

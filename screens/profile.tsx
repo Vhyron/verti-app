@@ -1,10 +1,15 @@
+/* eslint-disable @typescript-eslint/no-shadow */
+/* eslint-disable no-catch-shadow */
+/* eslint-disable react-native/no-inline-styles */
 /* eslint-disable eol-last */
 /* eslint-disable no-trailing-spaces */
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type RootStackParamList = {
   Dashboard: undefined;
@@ -20,6 +25,16 @@ type RootStackParamList = {
 };
 
 type NavigationProp = StackNavigationProp<RootStackParamList, 'Profile'>;
+
+interface UserProfile {
+  id?: number;
+  username: string;
+  email: string;
+  name?: string;
+}
+
+// API URL - make sure this matches your server configuration
+const API_URL = 'http://192.168.5.80:8080'; // Update with your server's IP and port
 
 // Burger Menu Icon
 const BurgerMenuIcon = () => (
@@ -39,17 +54,87 @@ const NotificationIcon = () => (
 const ProfileScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const [activeTab, setActiveTab] = useState('profile');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // User profile data (would typically come from state management or context)
-  const [userProfile] = useState({
-    name: 'John Doe',
-    email: 'johndoe@example.com',
-    username: 'johnd',
+  // User profile data state
+  const [userProfile, setUserProfile] = useState<UserProfile>({
+    username: 'Loading...',
+    email: 'Loading...',
   });
 
+  // Fetch user data on component mount
+  useEffect(() => {
+    fetchUserProfile();
+  }, []);
+
+  const fetchUserProfile = async () => {
+    // First try to get cached profile data
+    try {
+      const cachedProfile = await AsyncStorage.getItem('userProfile');
+      if (cachedProfile) {
+        setUserProfile(JSON.parse(cachedProfile));
+      }
+    } catch (err) {
+      console.error('Error reading cached profile:', err);
+    }
+
+    // Then try to fetch fresh data from server
+    try {
+      setIsLoading(true);
+      console.log('Fetching user data from:', `${API_URL}/users`);
+      
+      const response = await axios.get(`${API_URL}/users`, {
+        timeout: 10000, // 10 second timeout
+      });
+
+      console.log('User data response:', response.data);
+      
+      // Check if response.data is an array or a single object
+      let userData = response.data;
+      if (Array.isArray(userData) && userData.length > 0) {
+        // If it's an array, use the first user
+        userData = userData[0];
+      }
+      
+      if (userData && userData.username) {
+        const profileData = {
+          id: userData.id,
+          username: userData.username,
+          email: userData.email || 'No email provided',
+          name: userData.name || userData.username,
+        };
+        
+        setUserProfile(profileData);
+        
+        // Cache the profile data
+        await AsyncStorage.setItem('userProfile', JSON.stringify(profileData));
+      }
+
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching user data:', err);
+      setError('Could not load user data');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Logout handler
-  const handleLogout = () => {
-    navigation.navigate('Login');
+  const handleLogout = async () => {
+    try {
+      // Clear user data from AsyncStorage
+      await AsyncStorage.multiRemove(['userProfile', 'authToken']);
+      
+      // Optional: Call logout endpoint on server
+      // await axios.post(`${API_URL}/logout`);
+      
+      // Navigate to login screen
+      navigation.navigate('Login');
+    } catch (error) {
+      console.error('Error during logout:', error);
+      Alert.alert('Error', 'Failed to logout. Please try again.');
+    }
   };
 
   // Handler for burger menu
@@ -64,6 +149,11 @@ const ProfileScreen: React.FC = () => {
     }
     
     navigation.navigate(screenName);
+  };
+
+  // Pull to refresh functionality
+  const onRefresh = () => {
+    fetchUserProfile();
   };
 
   return (
@@ -97,39 +187,66 @@ const ProfileScreen: React.FC = () => {
       </View>
 
       {/* Profile Content */}
-      <ScrollView style={styles.content}>
-        {/* Profile Details */}
-        <View style={styles.profileDetailsContainer}>
-          <Text style={styles.profileName}>{userProfile.name}</Text>
-          <Text style={styles.profileUsername}>@{userProfile.username}</Text>
-          <Text style={styles.profileEmail}>{userProfile.email}</Text>
-        </View>
+      <ScrollView 
+        style={styles.content}
+        contentContainerStyle={{ flexGrow: 1 }}
+      >
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#2ecc71" />
+            <Text style={styles.loadingText}>Loading profile...</Text>
+          </View>
+        ) : error ? (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity 
+              style={styles.retryButton}
+              onPress={onRefresh}
+            >
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            {/* Profile Details */}
+            <View style={styles.profileDetailsContainer}>
+              <View style={styles.avatarCircle}>
+                <Text style={styles.avatarText}>
+                  {userProfile.username.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+              <Text style={styles.profileName}>{userProfile.name || userProfile.username}</Text>
+              <Text style={styles.profileUsername}>@{userProfile.username}</Text>
+              <Text style={styles.profileEmail}>{userProfile.email}</Text>
+            </View>
 
-        {/* Action Buttons */}
-        <View style={styles.actionButtonsContainer}>
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => handleNavigation('EditPassword')}
-          >
-            <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2ecc71" strokeWidth="2">
-              <Path d="M10 13.5l2 2 4-4m4.28-5.28a9 9 0 0 0-12.06 0L4 10l4 4 2-2" />
-              <Path d="M2 12l4 4 4-4m6 6l4-4-4-4" />
-            </Svg>
-            <Text style={styles.actionButtonText}>Change Password</Text>
-          </TouchableOpacity>
+            {/* Action Buttons */}
+            <View style={styles.actionButtonsContainer}>
+              <TouchableOpacity 
+                style={styles.actionButton}
+                onPress={() => handleNavigation('EditPassword')}
+              >
+                <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2ecc71" strokeWidth="2">
+                  <Path d="M10 13.5l2 2 4-4m4.28-5.28a9 9 0 0 0-12.06 0L4 10l4 4 2-2" />
+                  <Path d="M2 12l4 4 4-4m6 6l4-4-4-4" />
+                </Svg>
+                <Text style={styles.actionButtonText}>Change Password</Text>
+              </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={[styles.actionButton, styles.logoutButton]}
-            onPress={handleLogout}
-          >
-            <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2">
-              <Path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-              <Path d="M16 17l5-5-5-5" />
-              <Path d="M21 12H9" />
-            </Svg>
-            <Text style={styles.logoutButtonText}>Logout</Text>
-          </TouchableOpacity>
-        </View>
+              <TouchableOpacity 
+                style={[styles.actionButton, styles.logoutButton]}
+                onPress={handleLogout}
+              >
+                <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2">
+                  <Path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <Path d="M16 17l5-5-5-5" />
+                  <Path d="M21 12H9" />
+                </Svg>
+                <Text style={styles.logoutButtonText}>Logout</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
       </ScrollView>
 
       {/* iOS-style Bottom Navigation */}
@@ -188,27 +305,6 @@ const ProfileScreen: React.FC = () => {
           </Svg>
           <Text style={[styles.navLabel, activeTab === 'plants' && styles.activeNavLabel]}>Plants</Text>
           {activeTab === 'plants' && <View style={styles.activeTabIndicator} />}
-        </TouchableOpacity>
-        
-        {/* Plus Button */}
-        <TouchableOpacity 
-          style={styles.addButton}
-          activeOpacity={0.7}
-        >
-          <Svg
-            width={24}
-            height={24}
-            viewBox="0 0 24 24"
-            strokeWidth={2}
-            stroke="#2ecc71"
-            fill="none"
-          >
-            <Path
-              d="M12 5v14M5 12h14"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </Svg>
         </TouchableOpacity>
         
         {/* Apps Button */}
@@ -272,6 +368,7 @@ const styles = StyleSheet.create({
     color: '#2ecc71',
   },
   header: {
+    height: 110,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -286,6 +383,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   menuButton: {
+    marginTop: 45,
     padding: 8,
     borderRadius: 20,
     backgroundColor: 'rgba(46, 204, 113, 0.1)',
@@ -294,15 +392,23 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
+    top: 0,
+    height: 120,
     alignItems: 'center',
-    zIndex: -1,
+    justifyContent: 'center',
+    paddingTop: 40,
+    zIndex: 10,
   },
   logo: {
     fontSize: 25,
     fontWeight: 'bold',
     textAlign: 'center',
+    backgroundColor: 'white', // Optional: add background to logo text for visibility
+    paddingHorizontal: 10,
+    borderRadius: 5,
   },
   notificationButton: {
+    marginTop: 45,
     padding: 8,
     borderRadius: 20,
     backgroundColor: 'rgba(46, 204, 113, 0.1)',
@@ -311,10 +417,56 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#666',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#e74c3c',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: '#2ecc71',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
   profileDetailsContainer: {
     alignItems: 'center',
     marginBottom: 30,
     marginTop: 20,
+  },
+  avatarCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#2ecc71',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  avatarText: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: 'white',
   },
   profileName: {
     fontSize: 24,
@@ -376,6 +528,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 5,
     position: 'relative',
+    flex: 1,
   },
   navLabel: {
     fontSize: 10,
@@ -393,15 +546,6 @@ const styles = StyleSheet.create({
     height: 5,
     borderRadius: 2.5,
     backgroundColor: '#2ecc71',
-  },
-  addButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(46, 204, 113, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginHorizontal: 10,
   },
 });
 
